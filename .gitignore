@@ -1,3 +1,6 @@
 .idea
 cmake-build-debug
-local-cash
+cmake-build-debugamd
+cmake-build-debuggcc
+.local-cash
+Kbuild
