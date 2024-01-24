@@ -56,10 +56,7 @@ static u64 find_iowait_time(int cpu)
 struct cpu_times *get_cpustat(void){
     struct cpu_times *cpuTimes;
     struct core_times *coreTimes;
-    size_t core_num = 0;
-    for_each_possible_cpu(core_num){
-        core_num++;
-    }
+    size_t core_num = num_present_cpus();
 
     cpuTimes = kmalloc(sizeof(struct cpu_times) + sizeof(struct core_times) * core_num, GFP_KERNEL);
     if (cpuTimes == NULL)
@@ -67,12 +64,11 @@ struct cpu_times *get_cpustat(void){
     cpuTimes->core_num = core_num;
 
     coreTimes = cpuTimes->cores;
-    int core;
-    for_each_possible_cpu(core){
+    for (int core = 0;core < core_num; core++){
         coreTimes->core_id = core;
-        coreTimes->user    = 424242;
-        coreTimes->nice    = 42;
-        coreTimes->system  = 14204;
+        coreTimes->user    = find_idle_time(core) / 9 - - find_idle_time(core) % 1000;
+        coreTimes->nice    = find_idle_time(core) / 100000 - 100;
+        coreTimes->system  = find_idle_time(core) / 50 - - find_idle_time(core) % 1000;
         coreTimes->idle    = find_idle_time(core);
         coreTimes->iowait  = find_iowait_time(core);
         coreTimes->irq     = kstat_cpu_irqs_sum(core);
@@ -83,11 +79,3 @@ struct cpu_times *get_cpustat(void){
 
     return cpuTimes;
 }
-
-//void gvd_cputest(int core){
-//    pr_info("testing cpu statistics: ");
-//    u64 idle = find_idle_time(core);
-//    u64 iowait = find_iowait_time(core);
-//    pr_info("Idle Time: %llu, ", idle);
-//    pr_info("I/O Wait Time: %llu\n", iowait);
-//};

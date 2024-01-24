@@ -27,8 +27,10 @@ include_directories(
 )
 
 # Исходники модуля
-set(SOURCE_FILES Source/Kernel/magstat.c
-        Test/magister.c)
+set(SOURCE_FILES Source/Kernel/main.c
+        .local-cash/Test/magister.c
+        Source/Kernel/stats/cpustats.c
+        Source/Kernel/stats/cpustats.h)
 # Добавление цели модуля ядра
 add_library(stats_module SHARED ${SOURCE_FILES})
 

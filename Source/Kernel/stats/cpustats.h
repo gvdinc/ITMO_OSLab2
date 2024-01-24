@@ -18,7 +18,7 @@ struct core_times {
 
 struct cpu_times {
     size_t core_num;
-    struct core_times cores[];
+    struct core_times cores[12];
 };
 
 struct cpu_times *get_cpustat(void);
