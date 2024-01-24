@@ -12,13 +12,15 @@
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-// Структура для представления записи в /proc
-static struct proc_dir_entry *gvds_entry;
+MODULE_LICENSE("GPL");                      // Лицензия модуля
+MODULE_AUTHOR("grebenkin_vd");              // Автор модуля
+MODULE_DESCRIPTION("simple Linux module."); // Описание модуля
+MODULE_VERSION("0.01");                     // Версия модуля
 
 // Определение IOCTL команд
 #define CPU_LOAD_MAGIC 'b'
 #define RD_CPU_LOAD _IOR(CPU_LOAD_MAGIC, 1, struct cpu_times)   // макрос чтения данных о загрузке default
-#define UPDATE_STATS _IOR(CPU_LOAD_MAGIC, 2, int core_number)   // макрос для обновления статистики
+#define UPDATE_STATS _IOR(CPU_LOAD_MAGIC, 2, int)   // макрос для обновления статистики
 
 // Глобальные переменные для управления устройством
 static dev_t stats_dev = 0;
@@ -111,41 +113,57 @@ static long stats_ioctl(struct file *file, unsigned int cmd, unsigned long arg) 
             free_cpu_data();
 
             return 0;
+
+        default:
+            return -EINVAL;
     }
 }
 
-
-// Не реагируем на попытки изменения файла proc
-int react_procfs(struct seq_file *m, void *v) {
-    pr_warn("I do not react procfs!\n");
-    return 0;
-}
 
 // Инициализация модуля
-static int __init
-
-gvdstat_init(void) {
-    gvds_entry = proc_create_single("gvdstat", 644, NULL, react_procfs);
-    if (gvds_entry == NULL) {
-        proc_remove(gvds_entry);
-        pr_err("Error: failed to init /proc/gvdstat\n");
-        return -ENOMEM;
+static int __init stats_init(void) {
+    // Регистрация устройства
+    if ((alloc_chrdev_region(&stats_dev, 0, 1, "stats")) < 0) {
+        pr_err("alloc_chrdev_region failed\n");
+        return -1;
     }
-    pr_info("/proc/gvdstat is created\n");
+
+    cdev_init(&stats_cdev, &fops);
+
+    if ((cdev_add(&stats_cdev, stats_dev, 1)) < 0) {
+        pr_err("cdev_add failed\n");
+        class_destroy(stats_dev_class);
+        return -1;
+    }
+
+    if (IS_ERR(stats_dev_class = class_create("stats_class"))) {
+        pr_err("class_create failed\n");
+        class_destroy(stats_dev_class);
+        return -1;
+    }
+
+    if(IS_ERR(device_create(stats_dev_class, NULL, stats_dev, NULL, "stats"))){
+        pr_err("device_create failed\n");
+        class_destroy(stats_dev_class);
+        unregister_chrdev_region(stats_dev, 1);
+        return -1;
+    }
+    atomic_set(&stats_busy, 0);
+    pr_info("custom stats module initialised\n");
+
     return 0;
 }
 
 // Очистка ресурсов при выгрузке модуля
-static void __exit gvdstat_clean(void) {
-    proc_remove(gvds_entry);                 // Удаление записи из /proc
-    pr_info("turning off, /proc/gvdstat is now removed\n");
+static void __exit stats_clean(void) {
+    device_destroy(stats_dev_class, stats_dev);
+    class_destroy(stats_dev_class);
+    cdev_del(&stats_cdev);
+    unregister_chrdev_region(stats_dev, 1);
+    free_cpu_data();
+    pr_info("Cleaned up and turned off \n");
 }
 
 // Регистрация функций инициализации и очистки при загрузке и выгрузке модуля соответственно
-module_init(gvdstat_init);
-module_exit(gvdstat_clean);
-
-MODULE_LICENSE("GPL");                      // Лицензия модуля
-MODULE_AUTHOR("grebenkin_vd");              // Автор модуля
-MODULE_DESCRIPTION("simple Linux module."); // Описание модуля
-MODULE_VERSION("0.01");                     // Версия модуля
+module_init(stats_init);
+module_exit(stats_clean);

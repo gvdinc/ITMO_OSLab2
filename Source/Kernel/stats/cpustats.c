@@ -52,22 +52,6 @@ static u64 find_iowait_time(int cpu)
     return iowait;
 }
 
-// @depricated
-static struct core_times *get_corestat(int core){
-    if (core < 0 || (uint)core > num_present_cpus())
-        return NULL;
-    struct core_times *core_times_data = kmalloc(sizeof(struct core_times), GFP_KERNEL);
-    core_times_data->core_id = core;
-    core_times_data->user    = 424242;
-    core_times_data->nice    = 42;
-    core_times_data->system  = 14204;
-    core_times_data->idle    = find_idle_time(core);
-    core_times_data->iowait  = find_iowait_time(core);
-    core_times_data->irq     = kstat_cpu_irqs_sum(core);
-    core_times_data->softirq = kstat_cpu_softirqs_sum(core);
-    return core_times_data;
-}
-
 
 struct cpu_times *get_cpustat(void){
     struct cpu_times *cpuTimes;
